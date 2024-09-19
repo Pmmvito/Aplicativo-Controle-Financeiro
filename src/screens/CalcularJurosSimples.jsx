@@ -17,6 +17,17 @@ const CalcularJurosSimples = () => {
         setResult(A.toFixed(2));
     };
 
+    const fetchCDIRate = async () => {
+        try {
+            const response = await fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.4391/dados?formato=json');
+            const data = await response.json();
+            const latestRate = data[data.length - 1].valor; // Pega o valor mais recente
+            setRate(latestRate.toString());
+        } catch (error) {
+            console.error('Erro ao buscar a taxa do CDI:', error);
+        }
+    };
+
     return (
         <View style={styles.container}>
             <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('Home')}>
@@ -49,6 +60,10 @@ const CalcularJurosSimples = () => {
 
             <TouchableOpacity style={styles.calculateButton} onPress={calculateCompoundInterest}>
                 <Text style={styles.calculateButtonText}>Calcular</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.cdiButton} onPress={fetchCDIRate}>
+                <Text style={styles.cdiButtonText}>Usar Taxa CDI</Text>
             </TouchableOpacity>
 
             {result && !isNaN(time) ? (
@@ -103,8 +118,22 @@ const styles = StyleSheet.create({
         paddingVertical: 15,
         borderRadius: 8,
         alignItems: 'center',
+        marginBottom: 10,
     },
     calculateButtonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    cdiButton: {
+        width: '100%',
+        backgroundColor: '#2196F3',
+        paddingVertical: 15,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginBottom: 10,
+    },
+    cdiButtonText: {
         color: '#fff',
         fontSize: 18,
         fontWeight: 'bold',

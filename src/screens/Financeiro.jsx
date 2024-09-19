@@ -20,7 +20,7 @@ export default function Financeiro() {
       if (storedData) {
         const parsedData = JSON.parse(storedData);
         const monthKey = format(currentMonth, 'yyyy-MM');
-        const filteredData = parsedData[monthKey] || [];
+        const filteredData = parsedData[monthKey]?.transactions || [];
         setData(filteredData);
       }
     } catch (e) {
@@ -47,7 +47,7 @@ export default function Financeiro() {
     const storedData = await AsyncStorage.getItem('financeData');
     const parsedData = JSON.parse(storedData);
     const monthKey = format(currentMonth, 'yyyy-MM');
-    parsedData[monthKey] = newData;
+    parsedData[monthKey].transactions = newData;
     await AsyncStorage.setItem('financeData', JSON.stringify(parsedData));
     fetchData(); // Atualiza os dados após deletar
   };
@@ -63,7 +63,7 @@ export default function Financeiro() {
     const storedData = await AsyncStorage.getItem('financeData');
     const parsedData = JSON.parse(storedData);
     const monthKey = format(currentMonth, 'yyyy-MM');
-    parsedData[monthKey] = newData;
+    parsedData[monthKey].transactions = newData;
     await AsyncStorage.setItem('financeData', JSON.stringify(parsedData));
     setModalVisible(false);
     fetchData(); // Atualiza os dados após editar
@@ -159,95 +159,95 @@ export default function Financeiro() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        padding: 16,
-        backgroundColor: '#f0f0f0',
-      },
-      title: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: '#333',
-        marginBottom: 16,
-        textAlign: 'center',
-      },
-      subtitle: {
-        fontSize: 22,
-        fontWeight: '600',
-        color: '#666',
-        marginTop: 16,
-        marginBottom: 8,
-        borderBottomWidth: 1,
-        borderBottomColor: '#ddd',
-        paddingBottom: 4,
-      },
-      buttonContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 16,
-      },
-      listContainer: {
-        maxHeight: 200, // Limita a altura máxima de cada lista
-        marginBottom: 16,
-      },
-      itemContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 12,
-        backgroundColor: '#fff',
-        borderRadius: 8,
-        marginBottom: 8,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
-      },
-      itemTextContainer: {
-        flexDirection: 'column',
-        alignItems: 'flex-start',
-      },
-      itemName: {
-        fontSize: 18,
-        color: '#333',
-      },
-      itemValue: {
-        fontSize: 16,
-        color: '#4CAF50',
-        fontWeight: 'bold',
-      },
-      itemValueDespesas: {
-        fontSize: 16,
-        color: '#F44336',
-        fontWeight: 'bold',
-      },
-      inputContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        borderColor: 'gray',
-        borderWidth: 1,
-        borderRadius: 4,
-        marginBottom: 12,
-        paddingHorizontal: 8,
-      },
-      currency: {
-        fontSize: 18,
-        color: '#333',
-        marginRight: 4,
-      },
-      inputValue: {
-        flex: 1,
-        height: 40,
-      },
-      input: {
-        height: 40,
-        borderColor: 'gray',
-        borderWidth: 1,
-        marginBottom: 12,
-        paddingHorizontal: 8,
-        borderRadius: 4,
-      },
+  container: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#f0f0f0',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: '#666',
+    marginTop: 16,
+    marginBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+    paddingBottom: 4,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  listContainer: {
+    maxHeight: 200, // Limita a altura máxima de cada lista
+    marginBottom: 16,
+  },
+  itemContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  itemTextContainer: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
+  itemName: {
+    fontSize: 18,
+    color: '#333',
+  },
+  itemValue: {
+    fontSize: 16,
+    color: '#4CAF50',
+    fontWeight: 'bold',
+  },
+  itemValueDespesas: {
+    fontSize: 16,
+    color: '#F44336',
+    fontWeight: 'bold',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderColor: 'gray',
+    borderWidth: 1,
+    borderRadius: 4,
+    marginBottom: 12,
+    paddingHorizontal: 8,
+  },
+  currency: {
+    fontSize: 18,
+    color: '#333',
+    marginRight: 4,
+  },
+  inputValue: {
+    flex: 1,
+    height: 40,
+  },
+  input: {
+    height: 40,
+    borderColor: 'gray',
+    borderWidth: 1,
+    marginBottom: 12,
+    paddingHorizontal: 8,
+    borderRadius: 4,
+  },
   modalView: {
     margin: 20,
     backgroundColor: 'white',
