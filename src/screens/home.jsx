@@ -213,7 +213,7 @@ export default function Home({ navigation }) {
         <Text style={styles.chartTitle}>Saldo dos Últimos 12 Meses</Text>
         <LineChart
           data={chartData}
-          width={385} 
+          width={385} // Largura fixa para o gráfico
           height={220}
           yAxisLabel="R$"
           chartConfig={{
@@ -230,7 +230,7 @@ export default function Home({ navigation }) {
               stroke: "#3B82F6",
             },
             propsForBackgroundLines: {
-              strokeDasharray: "",
+              strokeDasharray: "", // Remove dashed lines
             },
           }}
           bezier
@@ -263,6 +263,7 @@ export default function Home({ navigation }) {
           </TouchableOpacity>
         </View>
       </Modal>
+
 
       <View style={styles.spacing} />
     </ScrollView>

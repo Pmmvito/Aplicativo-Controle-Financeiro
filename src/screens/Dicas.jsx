@@ -1,18 +1,15 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet, ScrollView, Dimensions } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';  // Importando ícones
+import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 
-
-const { width } = Dimensions.get('window'); // Obtendo a largura da tela para ajustar responsividade
-
+const { width } = Dimensions.get('window');
 
 const Dicas = () => {
     const [cdi, setCdi] = useState(null);
     const [selic, setSelic] = useState(null);
     const [exchangeRates, setExchangeRates] = useState(null);
     const [loading, setLoading] = useState(true);
-
 
     const fetchData = async () => {
         try {
@@ -23,10 +20,8 @@ const Dicas = () => {
             const exchangeResponse = await fetch('https://economia.awesomeapi.com.br/last/USD-BRL,EUR-BRL,BTC-BRL');
             const exchangeData = await exchangeResponse.json();
 
-
             const latestCdi = cdiData[cdiData.length - 1];
             const latestSelic = selicData[selicData.length - 1];
-
 
             setCdi(latestCdi ? latestCdi.valor : 'N/A');
             setSelic(latestSelic ? latestSelic.valor : 'N/A');
@@ -38,13 +33,11 @@ const Dicas = () => {
         }
     };
 
-
     useFocusEffect(
         useCallback(() => {
             fetchData();
         }, [])
     );
-
 
     if (loading) {
         return (
@@ -54,12 +47,10 @@ const Dicas = () => {
         );
     }
 
-
     return (
-
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
             <View style={styles.container}>
                 <Text style={styles.header}>Indicadores Financeiros</Text>
-
 
                 {/* Card CDI */}
                 <View style={styles.card}>
@@ -68,14 +59,12 @@ const Dicas = () => {
                     <MaterialIcons name="trending-up" size={20} color="#00796b" />
                 </View>
 
-
                 {/* Card Selic */}
                 <View style={styles.card}>
                     <Text style={styles.label}>Selic</Text>
                     <Text style={styles.value}>{selic}</Text>
                     <FontAwesome5 name="percentage" size={20} color="#00796b" />
                 </View>
-
 
                 {/* Cards de câmbio */}
                 {exchangeRates && (
@@ -87,14 +76,12 @@ const Dicas = () => {
                             <FontAwesome5 name="dollar-sign" size={20} color="#00796b" />
                         </View>
 
-
                         {/* Card EUR/BRL */}
                         <View style={styles.card}>
                             <Text style={styles.label}>EUR/BRL</Text>
                             <Text style={styles.value}>{exchangeRates.EURBRL.bid}</Text>
                             <FontAwesome5 name="euro-sign" size={20} color="#00796b" />
                         </View>
-
 
                         {/* Card BTC/BRL */}
                         <View style={styles.card}>
@@ -105,10 +92,9 @@ const Dicas = () => {
                     </>
                 )}
 
-
                 {/* Dicas Financeiras */}
                 <Text style={styles.header}>Dicas Financeiras</Text>
-                <ScrollView style={styles.dicasScroll} contentContainerStyle={styles.dicasContent}>
+                <View style={styles.dicasContent}>
                     <View style={styles.tipContainer}>
                         <Text style={styles.tipText}>1. Diversifique seus investimentos: Evite concentrar todo o capital em um único ativo para reduzir riscos.</Text>
                     </View>
@@ -133,11 +119,14 @@ const Dicas = () => {
                     <View style={styles.tipContainer}>
                         <Text style={styles.tipText}>8. Pague suas dívidas o quanto antes: Dívidas acumulam juros, então se livrar delas deve ser uma prioridade para evitar que cresçam.</Text>
                     </View>
-                </ScrollView>
+                </View>
+
+                {/* Espaço em branco abaixo */}
+                <View style={styles.spacer} />
             </View>
+        </ScrollView>
     );
 };
-
 
 const styles = StyleSheet.create({
     scrollContainer: {
@@ -147,7 +136,6 @@ const styles = StyleSheet.create({
         backgroundColor: '#e0f7fa',
     },
     container: {
-        flex: 1,
         alignItems: 'center',
         paddingHorizontal: 20,
     },
@@ -162,8 +150,8 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         padding: 10,
         marginVertical: 8,
-        width: width * 0.85,  // Tornando os cards responsivos
-        flexDirection: 'row',  // Ícone na direita
+        width: width * 0.85,
+        flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         shadowColor: '#000',
@@ -181,15 +169,10 @@ const styles = StyleSheet.create({
         fontSize: 18,
         color: '#00796b',
     },
-    dicasScroll: {
-        maxHeight: 400,
+    dicasContent: {
         width: '100%',
         marginTop: 15,
-        marginBottom: 120,
-        
-    },
-    dicasContent: {
-        paddingBottom: 30,
+        marginBottom: 20, // Adicione margem inferior se necessário
     },
     tipContainer: {
         backgroundColor: '#ffffff',
@@ -208,10 +191,9 @@ const styles = StyleSheet.create({
         color: '#004d40',
         lineHeight: 22,
     },
+    spacer: {
+        height: 100, // Ajuste a altura do espaço conforme necessário
+    },
 });
 
-
 export default Dicas;
-
-
-
