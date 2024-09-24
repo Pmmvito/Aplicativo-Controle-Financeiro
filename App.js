@@ -8,7 +8,6 @@ import { View, Text, TouchableOpacity, Modal, StyleSheet, Animated } from 'react
 import Home from './src/screens/home';
 import Financeiro from './src/screens/Financeiro';
 import Dicas from './src/screens/Dicas';
-import Backup from './src/screens/Backup';
 import CustomTabBarButton from './src/components/CustomTabBarButton';
 import styles from './src/styles/styles';
 import CalcularJurosSimples from './src/screens/CalcularJurosSimples';
@@ -128,18 +127,6 @@ const MainTabNavigator = ({ navigation }) => {
               <View style={[styles.tabButton, focused ? styles.activeTab : null]}>
                 <Icon name="bulb-outline" color={color} size={30} />
                 <Text style={[styles.tabText, { color }]}>Dicas</Text>
-              </View>
-            ),
-          }}
-        />
-        <Tab.Screen
-          name="Backup"
-          component={Backup}
-          options={{
-            tabBarIcon: ({ color, focused }) => (
-              <View style={[styles.tabButton, focused ? styles.activeTab : null]}>
-                <Icon name="cloud-upload-outline" color={color} size={30} />
-                <Text style={[styles.tabText, { color }]}>Backup</Text>
               </View>
             ),
           }}
