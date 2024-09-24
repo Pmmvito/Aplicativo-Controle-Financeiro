@@ -17,6 +17,7 @@
     "@react-navigation/native": "^6.1.18",
     "@react-navigation/stack": "^6.4.1",
     "date-fns": "^4.1.0",
+    "echarts-for-react": "^3.0.2",
     "expo": "~51.0.28",
     "expo-file-system": "~17.0.1",
     "expo-media-library": "~16.0.5",

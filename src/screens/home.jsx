@@ -264,7 +264,7 @@ export default function Home({ navigation }) {
         </View>
       </Modal>
 
-
+      {/* Espaçamento no final para permitir o scroll */}
       <View style={styles.spacing} />
     </ScrollView>
   );
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
     marginTop: 15,
   },
   contentContainer: {
-    paddingBottom: 50, 
+    paddingBottom: 50, // Espaçamento extra no final
   },
   title: {
     fontSize: 28,

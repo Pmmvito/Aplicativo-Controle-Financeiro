@@ -81,7 +81,7 @@ export default function Financeiro() {
           <Button title="Anterior" onPress={() => setCurrentMonth(subMonths(currentMonth, 1))} />
           <Button title="Próximo" onPress={() => setCurrentMonth(addMonths(currentMonth, 1))} />
         </View>
-
+  
         <Text style={styles.subtitle}>Entradas</Text>
         <ScrollView style={styles.listContainer}>
           {entradas.map((item, index) => (
@@ -102,7 +102,7 @@ export default function Financeiro() {
             </View>
           ))}
         </ScrollView>
-
+  
         <Text style={styles.subtitle}>Despesas</Text>
         <ScrollView style={styles.listContainer}>
           {despesas.map((item, index) => (
@@ -123,7 +123,7 @@ export default function Financeiro() {
             </View>
           ))}
         </ScrollView>
-
+  
         <Modal
           animationType="slide"
           transparent={true}
@@ -153,9 +153,13 @@ export default function Financeiro() {
             </TouchableOpacity>
           </View>
         </Modal>
+  
+        {/* Espaçamento em branco no final da tela */}
+        <View style={styles.spacing} />
       </View>
     </MenuProvider>
   );
+  
 }
 
 const styles = StyleSheet.create({
@@ -266,5 +270,8 @@ const styles = StyleSheet.create({
   closeButton: {
     color: 'blue',
     marginTop: 15,
+  },
+  spacing: {
+    height: 100, // altura do espaço em branco
   },
 });
