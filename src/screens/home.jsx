@@ -1,8 +1,7 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
-  Button,
   TextInput,
   StyleSheet,
   Modal,
@@ -13,9 +12,10 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { format, addMonths, subMonths, startOfYear } from "date-fns";
 import { useFocusEffect } from "@react-navigation/native";
-import { LineChart } from "react-native-chart-kit";
+import { BarChart } from "react-native-gifted-charts";
+import { LinearGradient } from 'expo-linear-gradient'; // Use expo-linear-gradient
 
-export default function Home({ navigation }) {
+export default function Home() {
   const [value, setValue] = useState("");
   const [name, setName] = useState("");
   const [type, setType] = useState("entrada");
@@ -27,11 +27,14 @@ export default function Home({ navigation }) {
   const [saldos, setSaldos] = useState(Array(12).fill(0));
 
   useFocusEffect(
+    
     useCallback(() => {
       fetchData();
       fetchSaldos();
     }, [currentMonth])
+    
   );
+  
 
   const fetchData = useCallback(async () => {
     try {
@@ -57,7 +60,7 @@ export default function Home({ navigation }) {
       };
       await AsyncStorage.setItem("financeData", JSON.stringify(parsedData));
     } catch (e) {
-      console.error(e);
+      console.error("Erro ao buscar dados:", e);
     }
   }, [currentMonth]);
 
@@ -66,18 +69,18 @@ export default function Home({ navigation }) {
       const storedData = await AsyncStorage.getItem("financeData");
       const parsedData = storedData ? JSON.parse(storedData) : {};
       const saldosArray = [];
-
+  
       const startDate = startOfYear(new Date());
-
+  
       for (let i = 0; i < 12; i++) {
         const monthKey = format(addMonths(startDate, i), "yyyy-MM");
         const saldo = parsedData[monthKey]?.saldo || 0;
         saldosArray.push(saldo);
       }
-
+  
       setSaldos(saldosArray);
     } catch (e) {
-      console.error(e);
+      console.error("Erro ao buscar saldos:", e);
     }
   }, []);
 
@@ -89,183 +92,159 @@ export default function Home({ navigation }) {
     return totalEntradas - totalDespesas;
   }, []);
 
-  const saveData = useCallback(async () => {
-    if (!name || !value) {
-      Alert.alert("Erro", "Preencha todos os campos antes de salvar.");
+const saveData = useCallback(async () => {
+  if (!name || !value) {
+    Alert.alert("Erro", "Preencha todos os campos antes de salvar.");
+    return;
+  }
+
+  try {
+    const parsedValue = parseFloat(value);
+    if (isNaN(parsedValue)) {
+      Alert.alert("Erro", "O valor deve ser numérico.");
       return;
     }
 
-    try {
-      const parsedValue = parseFloat(value);
-      if (isNaN(parsedValue)) {
-        Alert.alert("Erro", "O valor deve ser numérico.");
-        return;
-      }
+    const storedData = await AsyncStorage.getItem("financeData");
+    const parsedData = storedData ? JSON.parse(storedData) : {};
+    const monthKey = format(currentMonth, "yyyy-MM");
 
-      const storedData = await AsyncStorage.getItem("financeData");
-      const parsedData = storedData ? JSON.parse(storedData) : {};
-      const monthKey = format(currentMonth, "yyyy-MM");
-
-      if (!parsedData[monthKey]) {
-        parsedData[monthKey] = { transactions: [], saldo: 0 };
-      }
-
-      parsedData[monthKey].transactions.push({
-        type,
-        name,
-        value: parsedValue,
-        date: new Date(),
-      });
-
-      const saldoAtual =
-        calculateSaldo(parsedData[monthKey].transactions) + previousMonthSaldo;
-      parsedData[monthKey].saldo = saldoAtual;
-
-      await AsyncStorage.setItem("financeData", JSON.stringify(parsedData));
-
-      setValue("");
-      setName("");
-      setModalVisible(false);
-      fetchData();
-      fetchSaldos();
-    } catch (e) {
-      console.error(e);
+    if (!parsedData[monthKey]) {
+      parsedData[monthKey] = { transactions: [], saldo: 0 };
     }
-  }, [
-    name,
-    value,
-    type,
-    currentMonth,
-    previousMonthSaldo,
-    calculateSaldo,
-    fetchData,
-    fetchSaldos,
-  ]);
 
-  const chartData = useMemo(
-    () => ({
-      labels: Array.from({ length: 12 }, (_, i) =>
-        format(addMonths(startOfYear(new Date()), i), "MMM")
-      ),
-      datasets: [
-        {
-          data: saldos,
-        },
-      ],
-    }),
-    [saldos]
-  );
+    // Adiciona a nova transação
+    parsedData[monthKey].transactions.push({
+      type,
+      name,
+      value: parsedValue,
+      date: new Date(),
+    });
 
-  const totalEntradas = useMemo(() => {
-    return data
-      .filter((item) => item.type === "entrada")
-      .reduce((sum, item) => sum + item.value, 0);
-  }, [data]);
+    // Atualiza todos os saldos dos meses a partir de janeiro até o mês atual
+    const startDate = startOfYear(new Date());
+    for (let i = 0; i < 12; i++) {
+      const currentMonthKey = format(addMonths(startDate, i), "yyyy-MM");
+      const previousMonthKey = format(subMonths(addMonths(startDate, i), 1), "yyyy-MM");
 
-  const totalDespesas = useMemo(() => {
-    return data
-      .filter((item) => item.type === "despesa")
-      .reduce((sum, item) => sum + item.value, 0);
-  }, [data]);
+      // Transações do mês atual
+      const currentMonthTransactions = parsedData[currentMonthKey]?.transactions || [];
+      const previousMonthSaldo = parsedData[previousMonthKey]?.saldo || 0;
+
+      // Recalcula o saldo do mês
+      const saldoAtual = calculateSaldo(currentMonthTransactions) + previousMonthSaldo;
+
+      parsedData[currentMonthKey] = {
+        ...parsedData[currentMonthKey],
+        saldo: saldoAtual,
+        transactions: currentMonthTransactions,
+      };
+    }
+
+    // Salva os dados atualizados no AsyncStorage
+    await AsyncStorage.setItem("financeData", JSON.stringify(parsedData));
+
+    setValue("");
+    setName("");
+    setModalVisible(false);
+    fetchData();
+    fetchSaldos();  // Atualiza os saldos de todos os meses para o gráfico
+  } catch (e) {
+    console.error("Erro ao salvar dados:", e);
+  }
+}, [
+  name,
+  value,
+  type,
+  currentMonth,
+  calculateSaldo,
+  fetchData,
+  fetchSaldos,
+]);
+
+  const totalEntradas = data
+    .filter((item) => item.type === "entrada")
+    .reduce((sum, item) => sum + item.value, 0);
+
+  const totalDespesas = data
+    .filter((item) => item.type === "despesa")
+    .reduce((sum, item) => sum + item.value, 0);
+
+  // Ajuste na criação do barData
+const barData = saldos.map((saldo, index) => {
+  const monthDate = addMonths(startOfYear(currentMonth), index);
+  return {
+    value: saldo,
+    label: format(monthDate, "MMM"),
+  };
+}).filter(item => item.value !== 0); // Filtra saldos zero
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-    >
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <Text style={styles.title}>Controle Financeiro</Text>
       <Text style={styles.subtitle}>{format(currentMonth, "MMMM yyyy")}</Text>
+      
       <View style={styles.buttonContainer}>
-        <Button
-          title="Anterior"
-          onPress={() => setCurrentMonth(subMonths(currentMonth, 1))}
-        />
-        <Button
-          title="Próximo"
-          onPress={() => setCurrentMonth(addMonths(currentMonth, 1))}
-        />
+        <TouchableOpacity style={styles.button} onPress={() => setCurrentMonth(subMonths(currentMonth, 1))}>
+          <Text style={styles.buttonText}>Anterior</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.button} onPress={() => setCurrentMonth(addMonths(currentMonth, 1))}>
+          <Text style={styles.buttonText}>Próximo</Text>
+        </TouchableOpacity>
       </View>
-      <Text style={styles.relation}>
-        Saldo do Mês Anterior: R$ {previousMonthSaldo.toFixed(2)}
-      </Text>
-      <Text style={styles.relation}>
-        Entradas: R$ {totalEntradas.toFixed(2)}
-      </Text>
-      <Text style={styles.relation}>
-        Despesas: R$ {totalDespesas.toFixed(2)}
-      </Text>
-      <Text style={styles.relation}>Saldo Atual: R$ {saldo.toFixed(2)}</Text>
-      <Button
-        title="Adicionar Entrada"
-        onPress={() => {
-          setType("entrada");
-          setModalVisible(true);
-        }}
-      />
-      <Button
-        title="Adicionar Despesa"
-        onPress={() => {
-          setType("despesa");
-          setModalVisible(true);
-        }}
-      />
-      <View style={styles.chartContainer}>
-        <Text style={styles.chartTitle}>Saldo dos Últimos 12 Meses</Text>
-        <LineChart
-          data={chartData}
-          width={385} // Largura fixa para o gráfico
-          height={220}
-          yAxisLabel="R$"
-          chartConfig={{
-            backgroundColor: "#022173",
-            backgroundGradientFrom: "#1E3A8A",
-            backgroundGradientTo: "#3B82F6",
-            decimalPlaces: 2,
-            color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-            labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-            style: { borderRadius: 16 },
-            propsForDots: {
-              r: "6",
-              strokeWidth: "2",
-              stroke: "#3B82F6",
-            },
-            propsForBackgroundLines: {
-              strokeDasharray: "", // Remove dashed lines
-            },
-          }}
-          bezier
-          style={styles.chartStyle}
-        />
+      
+      <View style={styles.dataContainer}>
+        <Text style={styles.relation}>Saldo do Mês Anterior: R$ {previousMonthSaldo.toFixed(2)}</Text>
+        <Text style={styles.relation}>Entradas: R$ {totalEntradas.toFixed(2)}</Text>
+        <Text style={styles.relation}>Despesas: R$ {totalDespesas.toFixed(2)}</Text>
+        <Text style={styles.relation}>Saldo Atual: R$ {saldo.toFixed(2)}</Text>
       </View>
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
+
+      {barData.length > 0 ? (
+  <View style={styles.chartContainer}>
+    <Text style={styles.chartTitle}>Saldo Mensal</Text>
+    <BarChart
+      data={barData}               // Dados dos saldos mensais
+      barWidth={20}                // Largura das barras
+      barBorderRadius={5}          // Bordas arredondadas das barras
+      frontColor="#6c5ce7"         // Cor das barras
+      yAxisThickness={1}           // Espessura do eixo Y
+      xAxisThickness={1}           // Espessura do eixo X
+      height={220}                 // Altura do gráfico
+      hideRules                    // Oculta as linhas-guia do gráfico (opcional)
+      isAnimated={true}            // Ativa animação no gráfico
+      showFractionalValues={true}  // Exibe valores fracionados no eixo Y
+      labelWidth={30}              // Largura das labels no eixo X
+      yAxisLabelTexts={[]} // Exemplo de valores no eixo Y
+    />
+  </View>
+) : (
+  <Text style={styles.noDataText}>Sem dados disponíveis para o gráfico.</Text>
+)}
+
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity style={styles.entryButton} onPress={() => { setType("entrada"); setModalVisible(true); }}>
+          <Text style={styles.buttonText}>Adicionar Entrada</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.expenseButton} onPress={() => { setType("despesa"); setModalVisible(true); }}>
+          <Text style={styles.buttonText}>Adicionar Despesa</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Modal animationType="slide" transparent={true} visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modalView}>
-          <TextInput
-            style={styles.input}
-            placeholder="Nome"
-            value={name}
-            onChangeText={setName}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Valor"
-            keyboardType="numeric"
-            value={value}
-            onChangeText={setValue}
-          />
-          <Button title="Salvar" onPress={saveData} />
+          <TextInput style={styles.input} placeholder="Nome" value={name} onChangeText={setName} />
+          <TextInput style={styles.input} placeholder="Valor" keyboardType="numeric" value={value} onChangeText={setValue} />
+          <TouchableOpacity onPress={saveData}>
+            <LinearGradient colors={['#6c5ce7', '#a29bfe']} style={styles.modalButton}>
+              <Text style={styles.modalButtonText}>Salvar</Text>
+            </LinearGradient>
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => setModalVisible(false)}>
             <Text style={styles.closeButton}>Fechar</Text>
           </TouchableOpacity>
         </View>
       </Modal>
-
-      {/* Espaçamento no final para permitir o scroll */}
-      <View style={styles.spacing} />
     </ScrollView>
   );
 }
@@ -273,96 +252,103 @@ export default function Home({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
-    backgroundColor: "#f5f5f5",
+    padding: 20,
+    backgroundColor: "#f0f0f5",
+  },
+  contentContainer: {
+    flexGrow: 1,
+    justifyContent: "center",
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "bold",
-    color: "#333",
-    marginBottom: 16,
     textAlign: "center",
+    marginVertical: 10,
   },
   subtitle: {
-    fontSize: 22,
-    fontWeight: "600",
-    color: "#666",
-    marginBottom: 16,
+    fontSize: 18,
+    fontWeight: "500",
+    color: "#7a7a7a",
     textAlign: "center",
+    marginBottom: 20,
   },
   buttonContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 16,
+  },
+  button: {
+    flex: 1,
+    padding: 15,
+    backgroundColor: "#6c5ce7",
+    borderRadius: 5,
+    marginHorizontal: 5,
+  },
+  buttonText: {
+    textAlign: "center",
+    color: "#fff",
+    fontWeight: "500",
+  },
+  dataContainer: {
+    marginVertical: 20,
+    padding: 10,
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
   },
   relation: {
-    fontSize: 18,
-    color: "#333",
-    marginBottom: 8,
-    textAlign: "center",
+    fontSize: 16,
+    color: "#2e384d",
+    marginVertical: 4,
   },
-  chartContainer: {
-    marginVertical: 16,
-    borderRadius: 16,
-    backgroundColor: "#fff",
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+  entryButton: {
+    flex: 1,
+    backgroundColor: "#6c5ce7",
+    padding: 15,
+    borderRadius: 5,
+    marginHorizontal: 5,
   },
-  chartTitle: {
-    textAlign: "center",
-    fontSize: 18,
-    marginBottom: 10,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  chartStyle: {
-    borderRadius: 16,
-  },
-  input: {
-    height: 40,
-    borderColor: "gray",
-    borderWidth: 1,
-    marginBottom: 12,
-    paddingHorizontal: 8,
+  expenseButton: {
+    flex: 1,
+    backgroundColor: "#e63946",
+    padding: 15,
+    borderRadius: 5,
+    marginHorizontal: 5,
   },
   modalView: {
-    margin: 20,
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 35,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    flex: 1,
+    justifyContent: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    padding: 20,
+  },
+  input: {
+    height: 50,
+    borderColor: "#ccc",
+    borderWidth: 1,
+    borderRadius: 5,
+    marginBottom: 15,
+    padding: 10,
+    backgroundColor: "#fff",
+  },
+  modalButton: {
+    padding: 15,
+    borderRadius: 5,
+    marginTop: 10,
+  },
+  modalButtonText: {
+    textAlign: "center",
+    color: "#fff",
+    fontWeight: "500",
   },
   closeButton: {
-    color: "blue",
-    marginTop: 15,
-  },
-  contentContainer: {
-    paddingBottom: 50, // Espaçamento extra no final
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 16,
     textAlign: "center",
-  },
-
-  spacing: {
-    height: 150, 
+    marginTop: 10,
+    color: "#fff",
   },
 });

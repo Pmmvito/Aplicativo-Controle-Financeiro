@@ -51,6 +51,15 @@ export default function Financeiro() {
     await AsyncStorage.setItem('financeData', JSON.stringify(parsedData));
     fetchData(); // Atualiza os dados após deletar
   };
+  const handleDeleteAll = async () => {
+    try {
+      await AsyncStorage.removeItem('financeData');
+      setData([]);
+      console.log('Todos os itens foram excluídos');
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const saveEdit = async () => {
     const newData = data.map(i => {
@@ -81,6 +90,8 @@ export default function Financeiro() {
           <Button title="Anterior" onPress={() => setCurrentMonth(subMonths(currentMonth, 1))} />
           <Button title="Próximo" onPress={() => setCurrentMonth(addMonths(currentMonth, 1))} />
         </View>
+        <Button title="Excluir Tudo" onPress={handleDeleteAll} color="#ff0000" />
+
   
         <Text style={styles.subtitle}>Entradas</Text>
         <ScrollView style={styles.listContainer}>
@@ -191,7 +202,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   listContainer: {
-    maxHeight: 200, // Limita a altura máxima de cada lista
+    height: 150, // Altura fixa para o ScrollView
     marginBottom: 16,
   },
   itemContainer: {
