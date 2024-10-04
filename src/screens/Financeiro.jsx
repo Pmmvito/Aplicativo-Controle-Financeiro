@@ -1,263 +1,280 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Button, Modal, TextInput, TouchableOpacity } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect } from '@react-navigation/native';
-import { format, addMonths, subMonths } from 'date-fns';
-import Icon from 'react-native-vector-icons/FontAwesome';
-import { Menu, MenuOptions, MenuOption, MenuTrigger, MenuProvider } from 'react-native-popup-menu';
+import React, { useState, useCallback } from "react"
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Button,
+  Modal,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+} from "react-native"
+import AsyncStorage from "@react-native-async-storage/async-storage"
+import { useFocusEffect } from "@react-navigation/native"
+import { format, addMonths, subMonths } from "date-fns"
+import Icon from "react-native-vector-icons/FontAwesome"
+import {
+  Menu,
+  MenuOptions,
+  MenuOption,
+  MenuTrigger,
+  MenuProvider,
+} from "react-native-popup-menu"
 
 export default function Financeiro() {
-  const [data, setData] = useState([]);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [modalVisible, setModalVisible] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [name, setName] = useState('');
-  const [value, setValue] = useState('');
+  const [data, setData] = useState([])
+  const [currentMonth, setCurrentMonth] = useState(new Date())
+  const [modalVisible, setModalVisible] = useState(false)
+  const [selectedItem, setSelectedItem] = useState(null)
+  const [name, setName] = useState("")
+  const [value, setValue] = useState("")
 
   const fetchData = async () => {
     try {
-      const storedData = await AsyncStorage.getItem('financeData');
+      const storedData = await AsyncStorage.getItem("financeData")
       if (storedData) {
-        const parsedData = JSON.parse(storedData);
-        const monthKey = format(currentMonth, 'yyyy-MM');
-        const filteredData = parsedData[monthKey]?.transactions || [];
-        setData(filteredData);
+        const parsedData = JSON.parse(storedData)
+        const monthKey = format(currentMonth, "yyyy-MM")
+        setData(parsedData[monthKey]?.transactions || [])
       }
     } catch (e) {
-      console.error(e);
+      console.error(e)
     }
-  };
+  }
 
   useFocusEffect(
     useCallback(() => {
-      fetchData();
+      fetchData()
     }, [currentMonth])
-  );
+  )
 
   const handleEdit = (item) => {
-    setSelectedItem(item);
-    setName(item.name);
-    setValue(item.value.toString());
-    setModalVisible(true);
-  };
+    setSelectedItem(item)
+    setName(item.name)
+    setValue(item.value.toString())
+    setModalVisible(true)
+  }
 
   const handleDelete = async (item) => {
-    const newData = data.filter(i => i !== item);
-    setData(newData);
-    const storedData = await AsyncStorage.getItem('financeData');
-    const parsedData = JSON.parse(storedData);
-    const monthKey = format(currentMonth, 'yyyy-MM');
-    parsedData[monthKey].transactions = newData;
-    await AsyncStorage.setItem('financeData', JSON.stringify(parsedData));
-    fetchData(); // Atualiza os dados após deletar
-  };
+    const newData = data.filter((i) => i !== item)
+    setData(newData)
+    const storedData = await AsyncStorage.getItem("financeData")
+    const parsedData = JSON.parse(storedData)
+    const monthKey = format(currentMonth, "yyyy-MM")
+    parsedData[monthKey].transactions = newData
+    await AsyncStorage.setItem("financeData", JSON.stringify(parsedData))
+    fetchData()
+  }
+
   const handleDeleteAll = async () => {
-    try {
-      await AsyncStorage.removeItem('financeData');
-      setData([]);
-      console.log('Todos os itens foram excluídos');
-    } catch (e) {
-      console.error(e);
-    }
-  };
+    Alert.alert(
+      "Confirmar Exclusão",
+      "Tem certeza de que deseja excluir todos os dados?",
+      [
+        {
+          text: "Cancelar",
+          style: "cancel",
+        },
+        {
+          text: "Excluir",
+          onPress: async () => {
+            try {
+              await AsyncStorage.removeItem("financeData")
+              setData([])
+            } catch (e) {
+              console.error(e)
+            }
+          },
+          style: "destructive",
+        },
+      ]
+    )
+  }
 
   const saveEdit = async () => {
-    const newData = data.map(i => {
-      if (i === selectedItem) {
-        return { ...i, name, value: parseFloat(value) };
-      }
-      return i;
-    });
-    setData(newData);
-    const storedData = await AsyncStorage.getItem('financeData');
-    const parsedData = JSON.parse(storedData);
-    const monthKey = format(currentMonth, 'yyyy-MM');
-    parsedData[monthKey].transactions = newData;
-    await AsyncStorage.setItem('financeData', JSON.stringify(parsedData));
-    setModalVisible(false);
-    fetchData(); // Atualiza os dados após editar
-  };
+    const newData = data.map((i) =>
+      i === selectedItem ? { ...i, name, value: parseFloat(value) } : i
+    )
+    setData(newData)
+    const storedData = await AsyncStorage.getItem("financeData")
+    const parsedData = JSON.parse(storedData)
+    const monthKey = format(currentMonth, "yyyy-MM")
+    parsedData[monthKey].transactions = newData
+    await AsyncStorage.setItem("financeData", JSON.stringify(parsedData))
+    setModalVisible(false)
+    fetchData()
+  }
 
-  const entradas = data.filter(item => item.type === 'entrada');
-  const despesas = data.filter(item => item.type === 'despesa');
+  const entradas = data.filter((item) => item.type === "entrada")
+  const despesas = data.filter((item) => item.type === "despesa")
 
   return (
     <MenuProvider>
       <View style={styles.container}>
         <Text style={styles.title}>Financeiro</Text>
-        <Text style={styles.subtitle}>{format(currentMonth, 'MMMM yyyy')}</Text>
+        <Text style={styles.subtitle}>{format(currentMonth, "MMMM yyyy")}</Text>
         <View style={styles.buttonContainer}>
-          <Button title="Anterior" onPress={() => setCurrentMonth(subMonths(currentMonth, 1))} />
-          <Button title="Próximo" onPress={() => setCurrentMonth(addMonths(currentMonth, 1))} />
+          <Button
+            title="Anterior"
+            onPress={() => setCurrentMonth(subMonths(currentMonth, 1))}
+          />
+          <Button
+            title="Próximo"
+            onPress={() => setCurrentMonth(addMonths(currentMonth, 1))}
+          />
         </View>
         <Button title="Excluir Tudo" onPress={handleDeleteAll} color="#ff0000" />
-
-  
-        <Text style={styles.subtitle}>Entradas</Text>
-        <ScrollView style={styles.listContainer}>
-          {entradas.map((item, index) => (
-            <View key={index} style={styles.itemContainer}>
-              <View style={styles.itemTextContainer}>
-                <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemValue}>R$ {item.value ? item.value.toFixed(2) : '0.00'}</Text>
-              </View>
-              <Menu>
-                <MenuTrigger>
-                  <Icon name="cog" size={20} color="gray" />
-                </MenuTrigger>
-                <MenuOptions>
-                  <MenuOption onSelect={() => handleEdit(item)} text="Editar" />
-                  <MenuOption onSelect={() => handleDelete(item)} text="Excluir" />
-                </MenuOptions>
-              </Menu>
-            </View>
-          ))}
-        </ScrollView>
-  
-        <Text style={styles.subtitle}>Despesas</Text>
-        <ScrollView style={styles.listContainer}>
-          {despesas.map((item, index) => (
-            <View key={index} style={styles.itemContainer}>
-              <View style={styles.itemTextContainer}>
-                <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemValueDespesas}>R$ {item.value ? item.value.toFixed(2) : '0.00'}</Text>
-              </View>
-              <Menu>
-                <MenuTrigger>
-                  <Icon name="cog" size={20} color="gray" />
-                </MenuTrigger>
-                <MenuOptions>
-                  <MenuOption onSelect={() => handleEdit(item)} text="Editar" />
-                  <MenuOption onSelect={() => handleDelete(item)} text="Excluir" />
-                </MenuOptions>
-              </Menu>
-            </View>
-          ))}
-        </ScrollView>
-  
-        <Modal
-          animationType="slide"
-          transparent={true}
+        <CategoryList
+          title="Entradas"
+          items={entradas}
+          handleEdit={handleEdit}
+          handleDelete={handleDelete}
+        />
+        <CategoryList
+          title="Despesas"
+          items={despesas}
+          handleEdit={handleEdit}
+          handleDelete={handleDelete}
+        />
+        <EditModal
           visible={modalVisible}
-          onRequestClose={() => setModalVisible(false)}
-        >
-          <View style={styles.modalView}>
-            <TextInput
-              style={styles.input}
-              placeholder="Nome"
-              value={name}
-              onChangeText={setName}
-            />
-            <View style={styles.inputContainer}>
-              <Text style={styles.currency}>R$</Text>
-              <TextInput
-                style={styles.inputValue}
-                placeholder="Valor"
-                keyboardType="numeric"
-                value={value}
-                onChangeText={setValue}
-              />
-            </View>
-            <Button title="Salvar" onPress={saveEdit} />
-            <TouchableOpacity onPress={() => setModalVisible(false)}>
-              <Text style={styles.closeButton}>Fechar</Text>
-            </TouchableOpacity>
-          </View>
-        </Modal>
-  
-        {/* Espaçamento em branco no final da tela */}
-        <View style={styles.spacing} />
+          name={name}
+          value={value}
+          setName={setName}
+          setValue={setValue}
+          saveEdit={saveEdit}
+          closeModal={() => setModalVisible(false)}
+        />
       </View>
     </MenuProvider>
-  );
-  
+  )
 }
 
+const CategoryList = ({ title, items, handleEdit, handleDelete }) => (
+  <>
+    <Text style={styles.subtitle}>{title}</Text>
+    <ScrollView style={styles.listContainer}>
+      {items.map((item, index) => (
+        <View key={index} style={styles.itemContainer}>
+          <View style={styles.itemTextContainer}>
+            <Text style={styles.itemName}>{item.name}</Text>
+            <Text
+              style={
+                item.type === "entrada"
+                  ? styles.itemValue
+                  : styles.itemValueDespesas
+              }
+            >
+              R$ {item.value ? item.value.toFixed(2) : "0.00"}
+            </Text>
+          </View>
+          <Menu>
+            <MenuTrigger>
+              <Icon name="cog" size={20} color="gray" />
+            </MenuTrigger>
+            <MenuOptions>
+              <MenuOption onSelect={() => handleEdit(item)} text="Editar" />
+              <MenuOption onSelect={() => handleDelete(item)} text="Excluir" />
+            </MenuOptions>
+          </Menu>
+        </View>
+      ))}
+    </ScrollView>
+  </>
+)
+
+const EditModal = ({
+  visible,
+  name,
+  value,
+  setName,
+  setValue,
+  saveEdit,
+  closeModal,
+}) => (
+  <Modal
+    animationType="slide"
+    transparent
+    visible={visible}
+    onRequestClose={closeModal}
+  >
+    <View style={styles.modalView}>
+      <TextInput
+        style={styles.input}
+        placeholder="Nome"
+        value={name}
+        onChangeText={setName}
+      />
+      <View style={styles.inputContainer}>
+        <Text style={styles.currency}>R$</Text>
+        <TextInput
+          style={styles.inputValue}
+          placeholder="Valor"
+          keyboardType="numeric"
+          value={value}
+          onChangeText={setValue}
+        />
+      </View>
+      <Button title="Salvar" onPress={saveEdit} />
+      <TouchableOpacity onPress={closeModal}>
+        <Text style={styles.closeButton}>Fechar</Text>
+      </TouchableOpacity>
+    </View>
+  </Modal>
+)
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-    backgroundColor: '#f0f0f0',
-  },
+  container: { flex: 1, padding: 16, backgroundColor: "#f0f0f0" },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
     marginBottom: 16,
-    textAlign: 'center',
+    textAlign: "center",
   },
   subtitle: {
     fontSize: 22,
-    fontWeight: '600',
-    color: '#666',
-    marginTop: 16,
-    marginBottom: 8,
+    fontWeight: "600",
+    color: "#666",
+    marginVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
-    paddingBottom: 4,
+    borderBottomColor: "#ddd",
   },
   buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 16,
   },
-  listContainer: {
-    height: 150, // Altura fixa para o ScrollView
-    marginBottom: 16,
-  },
+  listContainer: { maxHeight: 150, marginBottom: 16 },
   itemContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: 12,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 8,
     marginBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
     elevation: 2,
   },
-  itemTextContainer: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-  },
-  itemName: {
-    fontSize: 18,
-    color: '#333',
-  },
-  itemValue: {
-    fontSize: 16,
-    color: '#4CAF50',
-    fontWeight: 'bold',
-  },
-  itemValueDespesas: {
-    fontSize: 16,
-    color: '#F44336',
-    fontWeight: 'bold',
-  },
+  itemTextContainer: { flexDirection: "column", alignItems: "flex-start" },
+  itemName: { fontSize: 18, color: "#333" },
+  itemValue: { fontSize: 16, color: "#4CAF50", fontWeight: "bold" },
+  itemValueDespesas: { fontSize: 16, color: "#F44336", fontWeight: "bold" },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderColor: 'gray',
+    flexDirection: "row",
+    alignItems: "center",
+    borderColor: "gray",
     borderWidth: 1,
     borderRadius: 4,
     marginBottom: 12,
     paddingHorizontal: 8,
   },
-  currency: {
-    fontSize: 18,
-    color: '#333',
-    marginRight: 4,
-  },
-  inputValue: {
-    flex: 1,
-    height: 40,
-  },
+  currency: { fontSize: 18, color: "#333", marginRight: 4 },
+  inputValue: { flex: 1, height: 40 },
   input: {
     height: 40,
-    borderColor: 'gray',
+    borderColor: "gray",
     borderWidth: 1,
     marginBottom: 12,
     paddingHorizontal: 8,
@@ -265,24 +282,11 @@ const styles = StyleSheet.create({
   },
   modalView: {
     margin: 20,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 20,
     padding: 35,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    alignItems: "center",
     elevation: 5,
   },
-  closeButton: {
-    color: 'blue',
-    marginTop: 15,
-  },
-  spacing: {
-    height: 100, // altura do espaço em branco
-  },
-});
+  closeButton: { color: "blue", marginTop: 15 },
+})
