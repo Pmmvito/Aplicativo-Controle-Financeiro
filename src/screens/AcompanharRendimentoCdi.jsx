@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, Button, StyleSheet, TouchableOpacity } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+} from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Picker } from "@react-native-picker/picker";
 import { useNavigation } from "@react-navigation/native";
@@ -9,21 +18,13 @@ const AcompanharRendimentoCdi = () => {
   const [investedAmount, setInvestedAmount] = useState("");
   const [monthlyContribution, setMonthlyContribution] = useState("");
   const [currentAmount, setCurrentAmount] = useState(0);
-  const [cdiRate, setCdiRate] = useState(0);
-  const [projecaoSemana, setProjecaoSemana] = useState(0);
-  const [projecaoMes, setProjecaoMes] = useState(0);
-  const [rendimentoSemana, setRendimentoSemana] = useState(0);
-  const [rendimentoMes, setRendimentoMes] = useState(0);
-  const [rendimentoLiquidoSemana, setRendimentoLiquidoSemana] = useState(0);
-  const [rendimentoLiquidoMes, setRendimentoLiquidoMes] = useState(0);
-  const [projecaoAno, setProjecaoAno] = useState(0);
-  const [projecaoCincoAnos, setProjecaoCincoAnos] = useState(0);
-  const [projecaoDezAnos, setProjecaoDezAnos] = useState(0);
-  const [rendimentoLiquidoAno, setRendimentoLiquidoAno] = useState(0);
-  const [rendimentoLiquidoCincoAnos, setRendimentoLiquidoCincoAnos] =
-    useState(0);
-  const [rendimentoLiquidoDezAnos, setRendimentoLiquidoDezAnos] = useState(0);
+  const [cdiRate, setCdiRate] = useState(0); // Taxa CDI mensal em decimal
   const [selectedOption, setSelectedOption] = useState("");
+
+  // Novos estados para cálculos
+  const [rendimentoBruto, setRendimentoBruto] = useState(0);
+  const [rendimentoLiquido, setRendimentoLiquido] = useState(0);
+  const [valorLiquidoAcumulado, setValorLiquidoAcumulado] = useState(0);
 
   useEffect(() => {
     const fetchCdiRate = async () => {
@@ -32,10 +33,11 @@ const AcompanharRendimentoCdi = () => {
           "https://api.bcb.gov.br/dados/serie/bcdata.sgs.4391/dados?formato=json"
         );
         const data = await response.json();
-        const latestCdi = data[data.length - 1].valor;
-        setCdiRate(latestCdi / 30);
+        // Supondo que o valor do CDI está no campo 'valor' e usa vírgula como decimal
+        const latestCdi = parseFloat(data[data.length - 1].valor.replace(",", "."));
+        setCdiRate(latestCdi / 100); // Convertendo para decimal
       } catch (error) {
-        console.error("Error fetching CDI rate:", error);
+        console.error("Erro ao buscar a taxa CDI:", error);
       }
     };
 
@@ -45,8 +47,23 @@ const AcompanharRendimentoCdi = () => {
         if (storedAmount !== null) {
           setCurrentAmount(parseFloat(storedAmount));
         }
+
+        const storedRendimentoBruto = await AsyncStorage.getItem("rendimentoBruto");
+        if (storedRendimentoBruto !== null) {
+          setRendimentoBruto(parseFloat(storedRendimentoBruto));
+        }
+
+        const storedRendimentoLiquido = await AsyncStorage.getItem("rendimentoLiquido");
+        if (storedRendimentoLiquido !== null) {
+          setRendimentoLiquido(parseFloat(storedRendimentoLiquido));
+        }
+
+        const storedValorLiquidoAcumulado = await AsyncStorage.getItem("valorLiquidoAcumulado");
+        if (storedValorLiquidoAcumulado !== null) {
+          setValorLiquidoAcumulado(parseFloat(storedValorLiquidoAcumulado));
+        }
       } catch (error) {
-        console.error("Error loading stored data:", error);
+        console.error("Erro ao carregar dados armazenados:", error);
       }
     };
 
@@ -57,97 +74,110 @@ const AcompanharRendimentoCdi = () => {
   useEffect(() => {
     const updateAmount = async () => {
       if (currentAmount > 0 && cdiRate > 0) {
-        const newAmount = currentAmount + currentAmount * (cdiRate / 100);
+        // Atualiza o valor atual com a taxa mensal
+        const newAmount = currentAmount * (1 + cdiRate);
         setCurrentAmount(newAmount);
         await AsyncStorage.setItem("currentAmount", newAmount.toString());
+
+        // Recalcula as projeções com o novo valor
+        if (selectedOption !== "") {
+          calcularProjecoes(newAmount, parseFloat(monthlyContribution), selectedOption);
+        }
       }
     };
 
-    const interval = setInterval(updateAmount, 24 * 60 * 60 * 1000); // Update every 24 hours
+    const interval = setInterval(updateAmount, 30 * 24 * 60 * 60 * 1000); // Aproximadamente 1 mês
 
     return () => clearInterval(interval);
-  }, [currentAmount, cdiRate]);
+  }, [currentAmount, cdiRate, selectedOption, monthlyContribution]);
 
   useEffect(() => {
-    if (currentAmount > 0 && cdiRate > 0) {
-      calcularProjecoes(currentAmount);
+    if (currentAmount > 0 && cdiRate > 0 && selectedOption !== "") {
+      calcularProjecoes(currentAmount, parseFloat(monthlyContribution), selectedOption);
     }
-  }, [currentAmount, cdiRate]);
+  }, [currentAmount, cdiRate, selectedOption, monthlyContribution]);
 
   const handleInvest = () => {
     const amount = parseFloat(investedAmount);
     const contribution = parseFloat(monthlyContribution);
-    if (!isNaN(amount)) {
+    if (!isNaN(amount) && !isNaN(contribution)) {
       setCurrentAmount(amount);
       AsyncStorage.setItem("currentAmount", amount.toString());
-      calcularProjecoes(amount, contribution);
+      calcularProjecoes(amount, contribution, selectedOption);
+    } else {
+      Alert.alert("Entradas Inválidas", "Por favor, insira valores válidos para investimento e aporte mensal.");
     }
   };
 
-  const calcularProjecoes = (amount, contribution = 0) => {
-    const cdiDiario = cdiRate / 100;
-    const rendimentoSemana = amount * cdiDiario * 5; // 5 dias úteis
-    const rendimentoMes = amount * cdiDiario * 21; // 21 dias úteis
-    const projecaoSemana = amount + rendimentoSemana;
-    const projecaoMes = amount + rendimentoMes;
-
-    const impostoSemana = rendimentoSemana * 0.225; // 22.5% para até 180 dias
-    const impostoMes = rendimentoMes * 0.225; // 22.5% para até 180 dias
-
-    const rendimentoLiquidoSemana = rendimentoSemana - impostoSemana;
-    const rendimentoLiquidoMes = rendimentoMes - impostoMes;
-
-    setRendimentoSemana(rendimentoSemana.toFixed(2));
-    setRendimentoMes(rendimentoMes.toFixed(2));
-    setProjecaoSemana(projecaoSemana.toFixed(2));
-    setProjecaoMes(projecaoMes.toFixed(2));
-    setRendimentoLiquidoSemana(rendimentoLiquidoSemana.toFixed(2));
-    setRendimentoLiquidoMes(rendimentoLiquidoMes.toFixed(2));
-
-    // Projeções para 1 ano, 5 anos e 10 anos
-    const rendimentoAno = calcularRendimentoComAportes(
-      amount,
-      contribution,
-      252
-    ); // 252 dias úteis
-    const rendimentoCincoAnos = calcularRendimentoComAportes(
-      amount,
-      contribution,
-      252 * 5
-    ); // 5 * 252 dias úteis
-    const rendimentoDezAnos = calcularRendimentoComAportes(
-      amount,
-      contribution,
-      252 * 10
-    ); // 10 * 252 dias úteis
-
-    const impostoAno = rendimentoAno * 0.175; // 17.5% para 361 a 720 dias
-    const impostoCincoAnos = rendimentoCincoAnos * 0.15; // 15% para acima de 720 dias
-    const impostoDezAnos = rendimentoDezAnos * 0.15; // 15% para acima de 720 dias
-
-    const rendimentoLiquidoAno = rendimentoAno - impostoAno;
-    const rendimentoLiquidoCincoAnos = rendimentoCincoAnos - impostoCincoAnos;
-    const rendimentoLiquidoDezAnos = rendimentoDezAnos - impostoDezAnos;
-
-    setProjecaoAno((amount + rendimentoLiquidoAno).toFixed(2));
-    setProjecaoCincoAnos((amount + rendimentoLiquidoCincoAnos).toFixed(2));
-    setProjecaoDezAnos((amount + rendimentoLiquidoDezAnos).toFixed(2));
-    setRendimentoLiquidoAno(rendimentoLiquidoAno.toFixed(2));
-    setRendimentoLiquidoCincoAnos(rendimentoLiquidoCincoAnos.toFixed(2));
-    setRendimentoLiquidoDezAnos(rendimentoLiquidoDezAnos.toFixed(2));
+  const calcularJurosCompostos = (pv, pmt, r, n) => {
+    if (r === 0) {
+      // Evita divisão por zero
+      const fv = pv + pmt * n;
+      const rendimentoBruto = fv - pv - pmt * n;
+      return { fv, rendimentoBruto };
+    }
+    const fator = Math.pow(1 + r, n);
+    const fv = pv * fator + pmt * ((fator - 1) / r);
+    const rendimentoBruto = fv - pv - pmt * n;
+    return { fv, rendimentoBruto };
   };
 
-  const calcularRendimentoComAportes = (amount, contribution, days) => {
-    let total = amount;
-    const cdiDiario = cdiRate / 100;
-    for (let i = 0; i < days; i++) {
-      total += total * cdiDiario;
-      if ((i + 1) % 21 === 0) {
-        // Adiciona o aporte mensal a cada 21 dias úteis
-        total += contribution;
-      }
+  const calcularProjecoes = async (amount, contribution = 0, periodo) => {
+    let meses = 0;
+    let imposto = 0;
+
+    switch (periodo) {
+      case "1 Semana":
+        meses = 0.23; // Aproximação: 1 semana ≈ 0.23 meses
+        imposto = 0.225;
+        break;
+      case "1 Mês":
+        meses = 1;
+        imposto = 0.225;
+        break;
+      case "1 Ano":
+        meses = 12;
+        imposto = 0.175;
+        break;
+      case "5 Anos":
+        meses = 60;
+        imposto = 0.15;
+        break;
+      case "10 Anos":
+        meses = 120;
+        imposto = 0.15;
+        break;
+      default:
+        meses = 0;
+        imposto = 0;
     }
-    return total - amount;
+
+    if (meses === 0) {
+      setValorLiquidoAcumulado(0);
+      setRendimentoBruto(0);
+      setRendimentoLiquido(0);
+      return;
+    }
+
+    // Calcula o valor futuro usando juros compostos
+    const { fv, rendimentoBruto } = calcularJurosCompostos(amount, contribution, cdiRate, meses);
+    // Calcula o rendimento líquido após impostos
+    const rendimentoLiquido = rendimentoBruto * (1 - imposto);
+    // Valor líquido acumulado
+    const valorLiquidoAcumulado = fv;
+
+    setRendimentoBruto(rendimentoBruto.toFixed(2));
+    setRendimentoLiquido(rendimentoLiquido.toFixed(2));
+    setValorLiquidoAcumulado(valorLiquidoAcumulado.toFixed(2));
+
+    // Armazena os valores no AsyncStorage
+    try {
+      await AsyncStorage.setItem("rendimentoBruto", rendimentoBruto.toFixed(2));
+      await AsyncStorage.setItem("rendimentoLiquido", rendimentoLiquido.toFixed(2));
+      await AsyncStorage.setItem("valorLiquidoAcumulado", valorLiquidoAcumulado.toString());
+    } catch (error) {
+      console.error("Erro ao armazenar os rendimentos:", error);
+    }
   };
 
   const formatCurrency = (value) => {
@@ -158,85 +188,28 @@ const AcompanharRendimentoCdi = () => {
   };
 
   const renderSelectedOption = () => {
-    switch (selectedOption) {
-      case "1 Semana":
-        return (
-          <>
-            <Text style={styles.result}>
-              Projeção para 1 Semana: {formatCurrency(projecaoSemana)}
-            </Text>
-            <Text style={styles.result}>
-              Rendimento para 1 Semana: {formatCurrency(rendimentoSemana)}
-            </Text>
-            <Text style={styles.result}>
-              Rendimento Líquido para 1 Semana:{" "}
-              {formatCurrency(rendimentoLiquidoSemana)} (descontando o imposto
-              de renda sobre o lucro)
-            </Text>
-          </>
-        );
-      case "1 Mês":
-        return (
-          <>
-            <Text style={styles.result}>
-              Projeção para 1 Mês: {formatCurrency(projecaoMes)}
-            </Text>
-            <Text style={styles.result}>
-              Rendimento para 1 Mês: {formatCurrency(rendimentoMes)}
-            </Text>
-            <Text style={styles.result}>
-              Rendimento Líquido para 1 Mês:{" "}
-              {formatCurrency(rendimentoLiquidoMes)} (descontando o imposto de
-              renda sobre o lucro)
-            </Text>
-          </>
-        );
-      case "1 Ano":
-        return (
-          <>
-            <Text style={styles.result}>
-              Projeção para 1 Ano: {formatCurrency(projecaoAno)}
-            </Text>
-            <Text style={styles.result}>
-              Rendimento Líquido para 1 Ano:{" "}
-              {formatCurrency(rendimentoLiquidoAno)} (descontando o imposto de
-              renda sobre o lucro)
-            </Text>
-          </>
-        );
-      case "5 Anos":
-        return (
-          <>
-            <Text style={styles.result}>
-              Projeção para 5 Anos: {formatCurrency(projecaoCincoAnos)}
-            </Text>
-            <Text style={styles.result}>
-              Rendimento Líquido para 5 Anos:{" "}
-              {formatCurrency(rendimentoLiquidoCincoAnos)} (descontando o
-              imposto de renda sobre o lucro)
-            </Text>
-          </>
-        );
-      case "10 Anos":
-        return (
-          <>
-            <Text style={styles.result}>
-              Projeção para 10 Anos: {formatCurrency(projecaoDezAnos)}
-            </Text>
-            <Text style={styles.result}>
-              Rendimento Líquido para 10 Anos:{" "}
-              {formatCurrency(rendimentoLiquidoDezAnos)} (descontando o imposto
-              de renda sobre o lucro)
-            </Text>
-          </>
-        );
-      default:
-        return null;
-    }
+    if (!selectedOption) return null;
+
+    return (
+      <>
+        <Text style={styles.result}>
+          Período Selecionado: {selectedOption}
+        </Text>
+        <Text style={styles.result}>
+          Rendimento Bruto: {formatCurrency(rendimentoBruto)}
+        </Text>
+        <Text style={styles.result}>
+          Rendimento Líquido: {formatCurrency(rendimentoLiquido)} (após impostos)
+        </Text>
+        <Text style={styles.result}>
+          Valor Líquido Acumulado: {formatCurrency(valorLiquidoAcumulado)}
+        </Text>
+      </>
+    );
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView contentContainerStyle={styles.container}>
       <TouchableOpacity
         style={styles.backButton}
         onPress={() => navigation.goBack()}
@@ -262,6 +235,10 @@ const AcompanharRendimentoCdi = () => {
       <Text style={styles.result}>
         Valor Atual: {formatCurrency(currentAmount)}
       </Text>
+
+      {/* Exibição dos Resultados */}
+      {renderSelectedOption()}
+
       <Picker
         selectedValue={selectedOption}
         onValueChange={(itemValue) => setSelectedOption(itemValue)}
@@ -274,14 +251,13 @@ const AcompanharRendimentoCdi = () => {
         <Picker.Item label="5 Anos" value="5 Anos" />
         <Picker.Item label="10 Anos" value="10 Anos" />
       </Picker>
-      {renderSelectedOption()}
-    </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: "center",
     padding: 20,
     backgroundColor: "#f5f5f5",
